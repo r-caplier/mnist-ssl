@@ -111,6 +111,7 @@ def train(train_loader, model, optimizer, criterion, epoch):
     for batch_idx, (data, target) in pbar:
         data = torch.stack(data)
         data = torch.transpose(data, 1, 0)
+        target = torch.LongTensor(target)
 
         if args.cuda:
             data_var, target_var = data.cuda(), target.cuda()
@@ -119,9 +120,10 @@ def train(train_loader, model, optimizer, criterion, epoch):
         print(target)
 
         # compute output
-        prediction = model(data_var)
+        prediction_target = model(data_var[0])
+        prediction_eval = model(data_var[1])
 
-        loss = criterion(prediction, target_var)
+        loss = criterion(prediction_target, prediction_eval, target_var)
 
         # compute gradient and update weights
         optimizer.zero_grad()

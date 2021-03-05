@@ -35,10 +35,6 @@ class MNISTModel(nn.Module):
 
         self.block = MNISTBlock()
 
-    def forward(self, imgs):
+    def forward(self, img):
 
-        target = self.block(imgs[0])
-        print(target)
-        eval = self.block(imgs[1])
-
-        return target, eval
+        return self.block(img)
