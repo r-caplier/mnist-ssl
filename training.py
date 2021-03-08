@@ -10,44 +10,26 @@ import torch.optim as optim
 import networks
 from tqdm import tqdm
 
-import dataloader
-import mnist_model
-import criterions
+import dataloader_v2
+
+ROOT_PATH = os.path.join(pathlib.Path(__file__).parent.absolute())  # Src files path
+INPUT_PATH = os.path.join(ROOT_PATH, 'datasets', 'clean')  # dataset.csv files path
 
 TRAIN_STEP = 100  # used for snapshot, and adjust learning rate
-normalize = transforms.Normalize((0.5), (0.5))
 
 # Training settings
-parser = argparse.ArgumentParser(description='PyTorch Classifier CGI vs NI')
+parser = argparse.ArgumentParser(description='Semi-supervised MNIST')
 
-parser.add_argument('--dataset_name', type=str,
-                    help='name of the saved dataset to use')
-parser.add_argument('--input_nc', type=int, default=3,
-                    help='# of input image channels')
-parser.add_argument('--img_mode', type=str, default='RGB',
-                    help='chooses how image are loaded')
+parser.add_argument('--dataset_name', type=str, help='name of the saved dataset to use')
+parser.add_argument('--img_mode', type=str, help='loading method (RGB or L)')
 
-parser.add_argument('--batch-size', type=int, default=32, metavar='N',
-                    help='input batch size for training (default: 32)')
-parser.add_argument('--test-batch-size', type=int, default=10, metavar='N',
-                    help='input batch size for testing (default: 10)')
-parser.add_argument('--epochs', type=int, default=TRAIN_STEP * 3, metavar='N',
-                    help='number of epochs to train (default: 300)')
-parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                    help='learning rate (default: 0.001)')
-parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
-                    help='SGD momentum (default: 0.9)')
-parser.add_argument('--wd', default=1e-4, type=float,
-                    metavar='W', help='weight decay (default: 1e-4)')
-parser.add_argument('--optimizer', default='sgd', type=str,
-                    metavar='OPT', help='The optimizer to use (default: sgd)')
+parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='input batch size for training (default: 32)')
+parser.add_argument('--test-batch-size', type=int, default=10, metavar='N', help='input batch size for testing (default: 10)')
+parser.add_argument('--epochs', type=int, default=TRAIN_STEP * 3, metavar='N', help='number of epochs to train (default: 300)')
 
-parser.add_argument('--log-dir', default='/logs',
-                    help='folder to output model checkpoints')
-parser.add_argument('--log-interval', type=int, default=20, metavar='N',
-                    help='how many batches to wait before logging training status')
-parser.add_argument('--no-cuda', action='store_true', default=False,
-                    help='disables CUDA training')
+parser.add_argument('--log-dir', default='/logs', help='folder to output model checkpoints')
+parser.add_argument('--log-interval', type=int, default=20, metavar='N', help='how many batches to wait before logging training status')
+parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
 
 args = parser.parse_args()
 
@@ -56,24 +38,14 @@ if args.cuda:
     cudnn.benchmark = True
 kwargs = {'num_workers': 8, 'pin_memory': True} if args.cuda else {}
 
-ROOT_PATH = os.path.join(pathlib.Path(__file__).parent.absolute())
-INPUT_PATH = os.path.join(ROOT_PATH, 'datasets', 'clean')
-
-LOG_DIR = ROOT_PATH + args.log_dir
+LOG_DIR = ROOT_PATH + args.log_dir  # Logs path
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
-# dataset_path = os.path.join(INPUT_PATH, dataset_name)
-train_loader = dataloader.DataLoaderImages(
-    dataloader.DatasetImages(args,
-                             'train',
-                             transforms.Compose([
-                                 transforms.RandomHorizontalFlip(),
-                                 transforms.ToTensor(),
-                                 normalize
-                             ])),
-    batch_size=args.batch_size, shuffle=True, **kwargs
-)
+# Dataloader
+train_loader = dataloader_v2.DataloaderMNIST(args,
+                                             'train',
+                                             img_transform=lambda x: x / np.linalg.norm(x))
 
 print('The number of train data: {}'.format(len(train_loader.dataset)))
 
@@ -109,25 +81,22 @@ def train(train_loader, model, optimizer, criterion, epoch):
     pbar = tqdm(enumerate(train_loader))
 
     for batch_idx, (data, target) in pbar:
-        data = torch.stack(data)
-        data = torch.transpose(data, 1, 0)
-        target = torch.LongTensor(target)
 
         if args.cuda:
             data_var, target_var = data.cuda(), target.cuda()
 
-        print(data_var[0].shape)
-        print(target)
+        data_var = torch.transpose(data_var, 1, 0)
+
+        optimizer.zero_grad()
 
         # compute output
-        prediction_target = model(data_var[0])
-        prediction_eval = model(data_var[1])
+        prediction_target = model.forward(data_var[0])
+        prediction_eval = model.forward(data_var[1])
 
-        loss = criterion(prediction_target, prediction_eval, target_var)
+        loss = criterion.forward(prediction_target, prediction_eval, target_var)
 
         # compute gradient and update weights
-        optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         optimizer.step()
 
         if batch_idx % args.log_interval == 0:

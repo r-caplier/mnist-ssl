@@ -29,7 +29,7 @@ def mask_labels(list_labels, nb_labels, nb_class):
     cnt = 0
     for i in range(len(list_labels)):
         if i not in labels_kept:
-            list_labels[i] = nb_class
+            list_labels[i] = -1
             cnt += 1
 
     print(cnt)
