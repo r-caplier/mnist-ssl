@@ -39,7 +39,7 @@ if not os.path.exists(LOGS_PATH):
     os.makedirs(LOGS_PATH)
 
 
-def training(args):
+def temporal_ensembling_training(args):
 
     def train(train_loader, model, y_ema, optimizer, criterion, weight_unsupervised_loss, epoch, cuda):
 
@@ -101,11 +101,7 @@ def training(args):
         return outputs, loss_epoch, sup_loss_epoch, unsup_loss_epoch
 
     # Creating the dataset and dataloader objects needed for training
-    train_dataset = datasets.DatasetMNIST(args,
-                                          False,
-                                          transform=transforms.Compose([
-                                              transforms.ToTensor(),
-                                              transforms.Normalize((0.5), (0.5))]))
+
     train_loader = DataLoader(train_dataset, **kwargs)
 
     args.nb_img_train = len(train_dataset)
