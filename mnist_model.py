@@ -1,40 +1,25 @@
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-
-
-class MNISTBlock(nn.Module):
-
-    def __init__(self):
-
-        super(MNISTBlock, self).__init__()
-
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 10)
-
-    def forward(self, x):
-
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
-
-        return x
+from torch.nn.utils import weight_norm
 
 
 class MNISTModel(nn.Module):
 
-    def __init__(self):
-
+    def __init__(self, p=0.5, fm1=16, fm2=32):
         super(MNISTModel, self).__init__()
+        self.fm1 = fm1
+        self.fm2 = fm2
+        self.act = nn.ReLU()
+        self.drop = nn.Dropout(p)
+        self.conv1 = weight_norm(nn.Conv2d(1, self.fm1, 3, padding=1))
+        self.conv2 = weight_norm(nn.Conv2d(self.fm1, self.fm2, 3, padding=1))
+        self.mp = nn.MaxPool2d(3, stride=2, padding=1)
+        self.fc = nn.Linear(self.fm2 * 7 * 7, 10)
 
-        self.block = MNISTBlock()
-
-    def forward(self, img):
-
-        return self.block(img)
+    def forward(self, x):
+        x = self.act(self.mp(self.conv1(x)))
+        x = self.act(self.mp(self.conv2(x)))
+        x = x.view(-1, self.fm2 * 7 * 7)
+        x = self.drop(x)
+        x = self.fc(x)
+        return x
