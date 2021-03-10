@@ -1,9 +1,11 @@
 import torch
+import torch.nn.functional as F
+from torch.autograd import Variable
 
 
 class MaskedCrossEntropy(object):
 
-    def __init__():
+    def __init__(self):
 
         self.loss = 0
 
@@ -14,13 +16,13 @@ class MaskedCrossEntropy(object):
         nb_labels = len(non_zero)
         # check if labeled samples in batch, return 0 if none*
 
-        if nbsup > 0:
+        if nb_labels > 0:
             masked_outputs = torch.index_select(out, 0, non_zero.view(nb_labels))
             masked_labels = labels[cond]
             self.loss = F.cross_entropy(masked_outputs, masked_labels)
-            return self.loss, nb_labels
+            return self.loss
 
-        return Variable(torch.FloatTensor([0.]).cuda(), requires_grad=False), 0
+        return Variable(torch.FloatTensor([0.]).cuda(), requires_grad=False)
 
 
 class MSELoss(object):
@@ -42,4 +44,6 @@ class TemporalLoss(object):
 
     def __call__(self, out1, out2, labels, w):
 
-        return w * self.loss_supervised(out1, labels) + self.loss_unsupervised(out1, out2)
+        sup_loss = self.loss_supervised(out1, labels)
+        unsup_loss = self.loss_unsupervised(out1, out2)
+        return sup_loss + w * unsup_loss, sup_loss, unsup_loss

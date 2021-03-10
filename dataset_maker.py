@@ -3,12 +3,28 @@ import pathlib
 import pandas as pd
 import random
 import re
+import argparse
 
 from sklearn.model_selection import train_test_split
 
-ROOT_PATH = '/home/romainc/code/mnist-ssl/dataset'
+import warnings
+warnings.filterwarnings('ignore')
+
+ROOT_PATH = os.path.join(pathlib.Path(__file__).parent.absolute(), 'dataset')
 DATA_PATH = os.path.join(ROOT_PATH, 'raw')
 OUTPUT_PATH = os.path.join(ROOT_PATH, 'clean')
+
+NB_CLASSES = 10
+
+parser = argparse.ArgumentParser(description='MNIST dataset maker')
+
+parser.add_argument('--dataset_name', type=str, help='name of the saved dataset to use')
+
+parser.add_argument('--dataset_size', type=int, default=30000, help='desired number of images in dataset (train and test) (default: 30000)')
+parser.add_argument('--test_size', type=float, default=0.2, help='percent of samples to be used for testing (default: 0.2)')
+parser.add_argument('--nb_labels', type=float, default=0.1, help='percent of test samples to be labelized (defautl: 0.1)')
+
+args = parser.parse_args()
 
 
 def good_parameters(nb_imgs, test_size, nb_labels):
@@ -19,12 +35,8 @@ def good_parameters(nb_imgs, test_size, nb_labels):
 
 def mask_labels(list_labels, nb_labels, nb_class):
 
-    print(len(list_labels))
-
     id_kept = list(range(len(list_labels)))
     labels_kept = random.sample(id_kept, int(nb_labels * len(list_labels)))
-
-    print(len(labels_kept))
 
     cnt = 0
     for i in range(len(list_labels)):
@@ -32,21 +44,19 @@ def mask_labels(list_labels, nb_labels, nb_class):
             list_labels[i] = -1
             cnt += 1
 
-    print(cnt)
-
     return list_labels
 
 
-def make_dataset(size=4000, test_size=0.2, nb_labels=0.1, nb_class=10, name=None):
+def make_dataset(name=None, size=30000, test_size=0.2, nb_labels=0.1, nb_class=10):
     """
     Grabs images names and creates a list of training samples and testing
     samples, and saves it in a .csv file
 
     Args:
-        - size (int, default 4000): number of images for the dataset
+        - size (int, default 30000): number of images for the dataset
         - test_size (float, default 0.1): percent of the train size to be used
         as test size
-        - nb_labels (float, default 1.): share of the training samples to save
+        - nb_labels (float, default 0.1): share of the training samples to save
         with label (for semi-supervised learning), set to 1. for supervised
         training
         - name (str, default None): name override for the final file
@@ -64,7 +74,7 @@ def make_dataset(size=4000, test_size=0.2, nb_labels=0.1, nb_class=10, name=None
     if os.path.exists(dataset_path):
         raise NameError('Dataset already exists')
     else:
-        with open(dataset_path, 'w') as f:
+        with open(dataset_path, 'w+') as f:
             f.write('Name,Label,Test\n')
 
     df_imgs = pd.read_csv(os.path.join(DATA_PATH, 'name_labels.csv')).iloc[:size]
@@ -73,9 +83,6 @@ def make_dataset(size=4000, test_size=0.2, nb_labels=0.1, nb_class=10, name=None
 
     train_imgs.reset_index(drop=True, inplace=True)
     test_imgs.reset_index(drop=True, inplace=True)
-
-    print(train_imgs)
-    print(test_imgs)
 
     train_imgs.loc[:, 'class'] = mask_labels(train_imgs.loc[:, 'class'], nb_labels, nb_class)
 
@@ -86,4 +93,5 @@ def make_dataset(size=4000, test_size=0.2, nb_labels=0.1, nb_class=10, name=None
         f.write(df_data.to_csv(header=False))
 
 
-make_dataset()
+if __name__ == '__main__':
+    make_dataset(args.dataset_name, args.dataset_size, args.test_size, args.nb_labels, NB_CLASSES)
