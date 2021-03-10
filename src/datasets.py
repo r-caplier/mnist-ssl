@@ -8,9 +8,15 @@ from PIL import Image
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.sampler import RandomSampler, SequentialSampler
 
-ROOT_PATH = os.path.join(pathlib.Path(__file__).parent.absolute(), 'dataset')
-DATA_PATH = os.path.join(ROOT_PATH, 'raw')
-INPUT_PATH = os.path.join(ROOT_PATH, 'clean')
+ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
+
+CLEAN_PATH = os.path.join(ROOT_PATH, 'datasets', 'clean')  # dataset.csv files path
+if not os.path.exists(CLEAN_PATH):
+    os.makedirs(CLEAN_PATH)
+
+RAW_PATH = os.path.join(ROOT_PATH, 'datasets', 'raw')
+if not os.path.exists(RAW_PATH):
+    os.makedirs(RAW_PATH)
 
 
 def load_dataset(fpath, test):
@@ -28,9 +34,9 @@ def load_dataset(fpath, test):
 def get_info(df_imgs, idx):
 
     if len(df_imgs.columns) == 2:
-        return os.path.join(DATA_PATH, df_imgs.iloc[idx]['Name']), df_imgs.iloc[idx]['Label']
+        return os.path.join(RAW_PATH, df_imgs.iloc[idx]['Name']), df_imgs.iloc[idx]['Label']
     else:
-        return os.path.join(DATA_PATH, df_imgs.iloc[idx]['Name']), None
+        return os.path.join(RAW_PATH, df_imgs.iloc[idx]['Name']), None
 
 
 def pil_loader(path, mode):
@@ -41,10 +47,6 @@ def pil_loader(path, mode):
             return img.convert('L')  # convert image to grey
         elif mode == 'RGB':
             return img.convert('RGB')  # convert image to rgb image
-
-
-def show_image(dataset_image):
-    dataset_image[0].show()
 
 
 class DatasetMNIST(data.Dataset):
@@ -62,7 +64,7 @@ class DatasetMNIST(data.Dataset):
 
     def __init__(self, args, test, transform=None, target_transform=None, loader=pil_loader):
 
-        fpath = os.path.join(INPUT_PATH, args.dataset_name + '.csv')
+        fpath = os.path.join(CLEAN_PATH, args.dataset_name + '.csv')
 
         self.df_imgs = load_dataset(fpath, test)
 

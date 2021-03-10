@@ -18,7 +18,8 @@ import dataset
 import mnist_model
 
 
-ROOT_PATH = pathlib.Path(__file__).parent.absolute()  # Src files path
+ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
+LOGS_PATH = os.path.join(ROOT_PATH, 'logs')  # Saved model path
 
 parser = argparse.ArgumentParser(description='Semi-supervised MNIST test')
 
@@ -36,8 +37,6 @@ if args.cuda:
     cudnn.benchmark = True
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 
-LOG_PATH = os.path.join(ROOT_PATH, 'logs')  # Saved model path
-
 
 def main():
 
@@ -54,7 +53,7 @@ def main():
 
     latest_log = get_latest_log(args.dataset_name)
 
-    checkpoint = torch.load(os.path.join(ROOT_PATH, 'logs', args.dataset_name, latest_log))
+    checkpoint = torch.load(os.path.join(LOGS_PATH, args.dataset_name, latest_log))
     model.load_state_dict(checkpoint['state_dict'])
 
     model.eval()
