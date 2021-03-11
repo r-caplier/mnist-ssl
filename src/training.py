@@ -5,49 +5,68 @@
 import sys
 sys.path.append('../')
 
-from vars import *
-import criterions
-import models
-import datasets
-from utils import networks
-from torch.autograd import Variable
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-import torch.optim as optim
-import torch.nn as nn
-import torchvision.transforms as transforms
-import torch.backends.cudnn as cudnn
-import torch
-import numpy as np
-import pickle
-import argparse
-import pathlib
 import os
+import pathlib
+import argparse
+import pickle
+import numpy as np
+
+import criterions
+from utils import networks
+
+import torch
+
+from torch.autograd import Variable
+
+from tqdm import tqdm
+
 
 ################################################################################
-#   Paths                                                                      #
+#   Training                                                                   #
 ################################################################################
 
-ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
 
-CLEAN_PATH = os.path.join(ROOT_PATH, 'datasets', 'clean')  # dataset.csv files path
-if not os.path.exists(CLEAN_PATH):
-    os.makedirs(CLEAN_PATH)
+def temporal_ensembling_training(train_dataloader, model, optimizer, args):
 
-LOGS_PATH = os.path.join(ROOT_PATH, 'logs')  # Logs path
-if not os.path.exists(LOGS_PATH):
-    os.makedirs(LOGS_PATH)
+    def get_weight(epoch, args):  # TODO
 
+        ramp_epochs = args.ramp_epochs
+        max_weight = args.max_weight
+        percent_labeled = args.percent_labeled
 
-def temporal_ensembling_training(args):
+        max_weight_corr = max_weight * percent_labeled
 
-    def train(train_loader, model, y_ema, optimizer, criterion, weight_unsupervised_loss, epoch, cuda):
+        if epoch == 1:
+            return 0
+        elif epoch >= ramp_epochs:
+            return max_weight_corr
+        else:
+            return max_weight_corr * np.exp(-args.RAMP_MULT * (1 - epoch / ramp_epochs) ** 2)
+
+    def update_moving_average(output, y_ema, epoch, alpha, cuda):
+
+        new_y_ema = torch.zeros(y_ema.shape).float()
+
+        if cuda:
+            new_y_ema = new_y_ema.cuda()
+
+        for idx in range(len(y_ema)):
+            new_y_ema[idx] = (alpha * y_ema[idx] + (1 - alpha) * output[idx]) / (1 - alpha ** epoch)
+
+        return new_y_ema
+
+    def train(train_dataloader, model, y_ema, optimizer, criterion, weight_unsupervised_loss, epoch, cuda):
 
         model.train()
 
-        loss_epoch = 0.
-        sup_loss_epoch = 0.
-        unsup_loss_epoch = 0.
+        loss_epoch = torch.tensor([0.], requires_grad=False)
+        sup_loss_epoch = torch.tensor([0.], requires_grad=False)
+        unsup_loss_epoch = torch.tensor([0.], requires_grad=False)
+
+        if args.cuda:
+            loss_epoch = loss_epoch.cuda()
+            sup_loss_epoch = sup_loss_epoch.cuda()
+            unsup_loss_epoch = unsup_loss_epoch.cuda()
 
         outputs = torch.zeros(args.nb_img_train, args.nb_classes).float()
         w = torch.autograd.Variable(torch.FloatTensor([weight_unsupervised_loss]), requires_grad=False)
@@ -56,7 +75,7 @@ def temporal_ensembling_training(args):
             outputs = outputs.cuda()
             w = w.cuda()
 
-        pbar = tqdm(enumerate(train_loader))
+        pbar = tqdm(enumerate(train_dataloader))
 
         for batch_idx, (data, target) in pbar:
 
@@ -75,45 +94,34 @@ def temporal_ensembling_training(args):
             loss.backward()
             optimizer.step()
 
-            loss_epoch += loss
+            loss_epoch += loss.detach()
             sup_loss_epoch += sup_loss
             unsup_loss_epoch += unsup_loss
 
             if batch_idx % args.log_interval == 0:
-                pbar.set_description(
-                    'Train Epoch: {} [{}/{} ({:.0f}%)]. Loss: {:.8f}'.format(
-                        epoch, batch_idx * len(data), len(train_loader.dataset),
-                        100. * batch_idx / len(train_loader),
-                        loss.item()))
+                pbar.set_description('Train Epoch: {} [{}/{} ({:.0f}%)]. Loss: {:.8f}'.format(epoch,
+                                                                                              batch_idx * len(data),
+                                                                                              args.nb_img_train,
+                                                                                              100. * batch_idx / args.nb_batches,
+                                                                                              (loss_epoch / (batch_idx + 1)).item()))
 
-            if batch_idx + 1 >= len(train_loader.dataset) / args.batch_size:
-                pbar.set_description(
-                    'Train Epoch: {} [{}/{} ({:.0f}%)]. Loss: {:.8f}'.format(
-                        epoch, len(train_loader.dataset), len(train_loader.dataset),
-                        100.,
-                        loss.item()))
+            if batch_idx + 1 >= args.nb_batches:
+                pbar.set_description('Train Epoch: {} [{}/{} ({:.0f}%)]. Loss: {:.8f}'.format(epoch,
+                                                                                              args.nb_img_train,
+                                                                                              args.nb_img_train,
+                                                                                              100.,
+                                                                                              (loss_epoch / args.nb_batches).item()))
 
-        if epoch % TRAIN_STEP == 0:
+        if epoch % args.TRAIN_STEP == 0:
             torch.save({'epoch': epoch,
                         'state_dict': model.state_dict()},
-                       '{}/{}/checkpoint_{}.pth'.format(LOG_DIR, args.dataset_name, epoch))
+                       os.path.join(args.logs_path, f'checkpoint_{epoch}.pth'))
 
         return outputs, loss_epoch, sup_loss_epoch, unsup_loss_epoch
 
-    # Creating the dataset and dataloader objects needed for training
-
-    train_loader = DataLoader(train_dataset, **kwargs)
-
-    args.nb_img_train = len(train_dataset)
-    args.nb_classes = train_dataset.nb_classes
-    args.percent_labeled = train_dataset.percent_labeled
-
-    print('The number of train data: {}'.format(len(train_loader.dataset)))
-
-    # Initialize the model and its weights
-    model = models.MNISTModel()
-    networks.print_network(model)
+    # Initialize the model weights and print its layout
     networks.init_weights(model, init_type='normal')
+    networks.print_network(model)
 
     # Initialize the temporal moving average for each target
     y_ema = torch.zeros(args.nb_img_train, args.nb_classes).float()
@@ -125,61 +133,30 @@ def temporal_ensembling_training(args):
     # First model checkpoint
     torch.save({'epoch': 0,
                 'state_dict': model.state_dict()},
-               os.path.join(LOGS_PATH, 'checkpoint_0.pth'))
+               os.path.join(args.logs_path, 'checkpoint_0.pth'))
 
     # Criterion for calculating the loss of our model
     criterion = criterions.TemporalLoss(args.cuda)
 
+    # Keeping track of each epoch losses
     losses = []
     sup_losses = []
     unsup_losses = []
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.002, betas=(0.9, 0.99))
-
     for epoch in range(1, args.epochs + 1):
 
         weight_unsupervised_loss = get_weight(epoch, args)
-        output, loss, sup_loss, unsup_loss = train(train_loader, model, y_ema, optimizer, criterion, weight_unsupervised_loss, epoch, args.cuda)
+        output, loss, sup_loss, unsup_loss = train(train_dataloader, model, y_ema, optimizer, criterion, weight_unsupervised_loss, epoch, args.cuda)
 
         losses.append(loss / int(args.nb_img_train / args.batch_size))
         sup_losses.append(sup_loss / int(args.nb_img_train / args.batch_size))
         unsup_losses.append(unsup_loss / int(args.nb_img_train / args.batch_size))
 
-        print('Updataing moving average...')
         y_ema = update_moving_average(output, y_ema, epoch, args.alpha, args.cuda)
 
-    with open(os.path.join(ROOT_PATH, f'graph/loss_{args.dataset_name}.pkl'), 'wb') as f:
+    with open(os.path.join(args.graphs_path, 'loss.pkl'), 'wb') as f:
         pickle.dump(losses, f)
-    with open(os.path.join(ROOT_PATH, f'graph/sup_loss_{args.dataset_name}.pkl'), 'wb') as f:
+    with open(os.path.join(args.graphs_path, 'sup_loss.pkl'), 'wb') as f:
         pickle.dump(sup_losses, f)
-    with open(os.path.join(ROOT_PATH, f'graph/unsup_loss_{args.dataset_name}.pkl'), 'wb') as f:
+    with open(os.path.join(args.graphs_path, 'unsup_loss.pkl'), 'wb') as f:
         pickle.dump(unsup_losses, f)
-
-
-def get_weight(epoch, args):  # TODO
-
-    ramp_epochs = args.ramp_epochs
-    max_weight = args.max_weight
-    percent_labeled = args.percent_labeled
-
-    max_weight_corr = max_weight * percent_labeled
-
-    if epoch == 1:
-        return 0
-    elif epoch >= ramp_epochs:
-        return max_weight_corr
-    else:
-        return max_weight_corr * np.exp(-RAMP_MULT * (1 - epoch / ramp_epochs) ** 2)
-
-
-def update_moving_average(output, y_ema, epoch, alpha, cuda):
-
-    new_y_ema = torch.zeros(y_ema.shape).float()
-
-    if cuda:
-        new_y_ema = new_y_ema.cuda()
-
-    for idx in range(len(y_ema)):
-        new_y_ema[idx] = (alpha * y_ema[idx] + (1 - alpha) * output[idx]) / (1 - alpha ** epoch)
-
-    return new_y_ema
