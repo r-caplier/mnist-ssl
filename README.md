@@ -22,9 +22,10 @@ python utils/MNIST/make_dataset.py --data MNIST --dataset_name dataset_full
 1. To run the training, you first need to choose one training method. The available methods are the following:
 - TemporalEnsembling
 
-2. The training can be started by running the following command (don't forget to replace the training method in the command, without the <>):
+2. The training can be started by running the following commands (don't forget to replace the training method in the command, without the <>):
 ```
-python src/main --data MNIST --dataset_name dataset_full --method <Insert your chosen method here>
+cd src
+python main --data MNIST --dataset_name dataset_full --method <Insert your chosen method here> --test False
 ```
 If your computer doesn't support cuda training, run the following command instead:
 ```

@@ -3,6 +3,7 @@ import pathlib
 import argparse
 
 import training
+import testing
 import models
 import datasets
 
@@ -48,13 +49,16 @@ parser.add_argument('--img_mode', type=str, default='L', help='loading method (R
 parser.add_argument('--method', type=str, default='TemporalEnsembling', help='training method')
 parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer to use')
 
-parser.add_argument('--batch_size', type=int, default=100, help='input batch size for training (default: 32)')
+parser.add_argument('--batch_size', type=int, default=100, help='input batch size for training (default: 100)')
+parser.add_argument('--test_batch_size', type=int, default=50, help='input batch size for testing (default: 50)')
 parser.add_argument('--shuffle', type=bool, default=True, help='shuffle bool for train dataset (default: True)')
 parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 300)')
 parser.add_argument('--ramp_epochs', type=int, default=10, help='number of epochs before unsupervised weight reaches its maximum (default: 50)')
 parser.add_argument('--max_weight', type=float, default=20., help='maximum weight for the unsupervised loss (default: 30.)')
 parser.add_argument('--alpha', type=float, default=0.6, help='variable for the moving average part (default: 0.7)')
 
+parser.add_argument('--train', type=bool, default=True, help='Whether or not to train the model')
+parser.add_argument('--test', type=bool, default=True, help='Whether or not to test the model. If no trained model is found, returns an error')
 parser.add_argument('--log_interval', type=int, default=10, help='how many batches to wait before logging training status')
 parser.add_argument('--no_cuda', default=False, help='disables CUDA training')
 
@@ -91,42 +95,70 @@ else:
 
 def main():
 
-    print('Creating dataset...')
-    # Dataset object based on which data is used
-    if args.data == 'MNIST':
-        train_dataset_transforms = transforms.Compose([transforms.ToTensor(),
-                                                       transforms.Normalize((0.5), (0.5))])
-        train_dataset = datasets.DatasetMNIST(args,
-                                              False,
-                                              transform=train_dataset_transforms)
-        model = models.MNISTModel()
+    if args.train:
+        print('Starting training...')
 
-    if args.data == 'CGvsNI':  # TODO!
-        train_dataset_transforms = None
+        # Dataset object based on which data is used
+        if args.data == 'MNIST':
+            train_dataset_transforms = transforms.Compose([transforms.ToTensor(),
+                                                           transforms.Normalize((0.5), (0.5))])
+            train_dataset = datasets.DatasetMNIST(args,
+                                                  False,
+                                                  transform=train_dataset_transforms)
+            model = models.MNISTModel()
 
-    # DataLoader object
-    train_dataloader = DataLoader(train_dataset, **kwargs)
+        if args.data == 'CGvsNI':  # TODO!
+            train_dataset_transforms = None
 
-    # Useful variables
-    args.nb_img_train = len(train_dataset)
-    args.nb_batches = len(train_dataloader)
-    args.nb_classes = train_dataset.nb_classes
-    args.percent_labeled = train_dataset.percent_labeled
+        # DataLoader object
+        train_dataloader = DataLoader(train_dataset, **kwargs)
 
-    print('The number of train data: {}'.format(len(train_dataloader.dataset)))
+        # Useful variables
+        args.nb_img_train = len(train_dataset)
+        args.nb_batches = len(train_dataloader)
+        args.nb_classes = train_dataset.nb_classes
+        args.percent_labeled = train_dataset.percent_labeled
 
-    # Optimizer
-    if args.optimizer == 'Adam':
-        optimizer = Adam(model.parameters(), lr=0.002, betas=(0.9, 0.99))
-    if args.optimizer == 'SGD':
-        opitimizer = None  # TODO!
+        print('The number of train data: {}'.format(len(train_dataloader.dataset)))
 
-    print('Starting training...')
-    # Training method
-    if args.method == 'TemporalEnsembling':
-        training.temporal_ensembling_training(train_dataloader, model, optimizer, args)
+        # Optimizer
+        if args.optimizer == 'Adam':
+            optimizer = Adam(model.parameters(), lr=0.002, betas=(0.9, 0.99))
+        if args.optimizer == 'SGD':
+            optimizer = None  # TODO!
 
-    print('Training done!')
+        # Training method
+        if args.method == 'TemporalEnsembling':
+            training.temporal_ensembling_training(train_dataloader, model, optimizer, args)
+
+        print('Training done!')
+        print('\n\n')
+
+    if args.test:
+        if not os.path.exists(args.logs_path):
+            raise RuntimeError('No model chekpoint found, please train a model')
+
+        print('Running tests...')
+
+        if args.data == 'MNIST':
+            test_dataset_transforms = transforms.Compose([transforms.ToTensor(),
+                                                          transforms.Normalize((0.5), (0.5))])
+            test_dataset = datasets.DatasetMNIST(args,
+                                                 True,
+                                                 transform=train_dataset_transforms)
+            model = models.MNISTModel()
+
+            latest_log = get_latest_log(args.logs_path)
+
+            checkpoint = torch.load(os.path.join(args.logs_path, latest_log))
+            model.load_state_dict(checkpoint['state_dict'])
+
+        if args.data == 'CGvsNI':  # TODO!
+            test_dataset_transforms = None
+
+        testing.testing(test_dataloader, model, args)
+
+        print('Tests done!')
 
 
 if __name__ == '__main__':
