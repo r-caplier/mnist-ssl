@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Dataset maker')
 parser.add_argument('--data', type=str, help='data to use')
 parser.add_argument('--dataset_name', type=str, help='name of the saved dataset to use')
 
-parser.add_argument('--dataset_size', type=int, default=30000, help='desired number of images in dataset (train and test) (default: 30000)')
+parser.add_argument('--dataset_size', type=int, default=-1, help='desired number of images in dataset (train and test) (default: 30000)')
 parser.add_argument('--test_size', type=float, default=0.2, help='percent of samples to be used for testing (default: 0.2)')
 parser.add_argument('--nb_labels', type=float, default=0.1, help='percent of test samples to be labelized (defautl: 0.1)')
 
