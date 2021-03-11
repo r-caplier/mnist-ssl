@@ -32,3 +32,7 @@ python src/main --data MNIST --dataset_name dataset_full --method <Insert your c
 ```
 
 3. After a while, your model will be trained. The model checkpoints are saved in the checkpoint folder, and the loss evolution over all epochs is saved in .pkl format in the graphs folder.
+
+## Testing
+
+WIP
