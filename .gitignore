@@ -132,6 +132,7 @@ dmypy.json
 *.ipynb
 
 # datasets
+*.csv
 *.jpeg
 *.pkl
 *.pth
