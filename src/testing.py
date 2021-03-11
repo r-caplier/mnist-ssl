@@ -44,6 +44,19 @@ def testing_metrics(test_dataloader, model, args):
             oriTestLabel.extend(pred.squeeze().cpu().numpy())
             oriImageLabel.extend(target.data.cpu().numpy())
 
+            if batch_idx % args.log_interval == 0:
+                pbar.set_description('Test Batch: {}/{} [{}/{} ({:.0f}%)]'.format(batch_idx + 1,
+                                                                                  args.nb_batches_test,
+                                                                                  batch_idx * len(data),
+                                                                                  args.nb_img_test,
+                                                                                  100. * batch_idx / args.nb_batches_test)
+        pbar.set_description('Test Batch: {}/{} [{}/{} ({:.0f}%)]'.format(args.nb_batches_test,
+                                                                          args.nb_batches_test,
+                                                                          args.nb_img_test,
+                                                                          args.nb_img_test,
+                                                                          100.)
+
+
     print(metrics.classification_report(oriImageLabel, oriTestLabel, digits=3))
 
 def testing_display(test_dataloader, model, args):
