@@ -62,7 +62,7 @@ parser.add_argument('--test_batch_size', type=int, default=50, help='input batch
 parser.add_argument('--shuffle', type=bool, default=True, help='shuffle bool for train dataset (default: True)')
 parser.add_argument('--epochs', type=int, default=50, help='number of epochs to train (default: 300)')
 parser.add_argument('--ramp_epochs', type=int, default=10, help='number of epochs before unsupervised weight reaches its maximum (default: 50)')
-parser.add_argument('--max_weight', type=float, default=20., help='maximum weight for the unsupervised loss (default: 30.)')
+parser.add_argument('--max_weight', type=float, default=50., help='maximum weight for the unsupervised loss (default: 30.)')
 parser.add_argument('--alpha', type=float, default=0.6, help='variable for the moving average part (default: 0.7)')
 
 parser.add_argument('--train', dest='train', action='store_true')
