@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from sklearn import metrics
 
 
 ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
@@ -43,10 +44,9 @@ def testing_metrics(test_dataloader, model, args):
             oriTestLabel.extend(pred.squeeze().cpu().numpy())
             oriImageLabel.extend(target.data.cpu().numpy())
 
-    result = np.array(oriImageLabel) == np.array(oriTestLabel)
-    print('Accuracy: ', sum(result) / args.nb_img_test)
+    print(metrics.classification_report(oriImageLabel, oriTestLabel, digits=3))
 
-def testing_diplay():
+def testing_display(test_dataloader, model, args):
 
     nb_imgs_to_check = 9
     fig = plt.figure(figsize=(12, 12))

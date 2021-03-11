@@ -1,3 +1,10 @@
+################################################################################
+#   Libraries                                                                  #
+################################################################################
+
+import sys
+sys.path.append('../')
+
 import os
 import pathlib
 import argparse
@@ -6,6 +13,7 @@ import training
 import testing
 import models
 import datasets
+from utils import display
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -19,8 +27,8 @@ from torch.utils.data import DataLoader
 #   Paths and variables                                                        #
 ################################################################################
 
-TRAIN_STEP = 5
-RAMP_MULT = 5
+TRAIN_STEP = 10
+RAMP_MULT = 2
 
 ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
 
@@ -52,7 +60,7 @@ parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer to 
 parser.add_argument('--batch_size', type=int, default=100, help='input batch size for training (default: 100)')
 parser.add_argument('--test_batch_size', type=int, default=50, help='input batch size for testing (default: 50)')
 parser.add_argument('--shuffle', type=bool, default=True, help='shuffle bool for train dataset (default: True)')
-parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 300)')
+parser.add_argument('--epochs', type=int, default=50, help='number of epochs to train (default: 300)')
 parser.add_argument('--ramp_epochs', type=int, default=10, help='number of epochs before unsupervised weight reaches its maximum (default: 50)')
 parser.add_argument('--max_weight', type=float, default=20., help='maximum weight for the unsupervised loss (default: 30.)')
 parser.add_argument('--alpha', type=float, default=0.6, help='variable for the moving average part (default: 0.7)')
@@ -136,7 +144,10 @@ def main():
             training.temporal_ensembling_training(train_dataloader, model, optimizer, args)
 
         print('Training done!')
-        print('\n\n')
+
+        display.show_loss(args)
+
+        print('\n')
 
     if args.test:
         if not os.path.exists(args.logs_path):
@@ -167,6 +178,7 @@ def main():
         args.nb_batches_test = len(test_dataloader)
 
         testing.testing_metrics(test_dataloader, model, args)
+        testing.testing_display(test_dataloader, model, args)
 
         print('Tests done!')
 
