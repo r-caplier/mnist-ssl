@@ -10,14 +10,13 @@ from sklearn.model_selection import train_test_split
 import warnings
 warnings.filterwarnings('ignore')
 
-ROOT_PATH = os.path.join(pathlib.Path(__file__).parent.absolute(), 'dataset')
-DATA_PATH = os.path.join(ROOT_PATH, 'raw')
-OUTPUT_PATH = os.path.join(ROOT_PATH, 'clean')
+ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
 
 NB_CLASSES = 10
 
-parser = argparse.ArgumentParser(description='MNIST dataset maker')
+parser = argparse.ArgumentParser(description='Dataset maker')
 
+parser.add_argument('--data', type=str, help='data to use')
 parser.add_argument('--dataset_name', type=str, help='name of the saved dataset to use')
 
 parser.add_argument('--dataset_size', type=int, default=30000, help='desired number of images in dataset (train and test) (default: 30000)')
@@ -25,6 +24,18 @@ parser.add_argument('--test_size', type=float, default=0.2, help='percent of sam
 parser.add_argument('--nb_labels', type=float, default=0.1, help='percent of test samples to be labelized (defautl: 0.1)')
 
 args = parser.parse_args()
+
+DATA_PATH = os.path.join(ROOT_PATH, 'datasets', args.data)
+if not os.path.exists(DATA_PATH):
+    raise RuntimeError('Please create datasets folder and add data to it')
+
+CLEAN_PATH = os.path.join(DATA_PATH, 'clean')
+if not os.path.exists(CLEAN_PATH):
+    os.mkdir(CLEAN_PATH)
+
+RAW_PATH = os.path.join(DATA_PATH, 'raw')
+if not os.path.exists(RAW_PATH):
+    raise RuntimeError('Please create raw folder and populate it')
 
 
 def good_parameters(nb_imgs, test_size, nb_labels):
@@ -67,9 +78,11 @@ def make_dataset(name=None, size=30000, test_size=0.2, nb_labels=0.1, nb_class=1
     if name == None:
         # default naming convention
         dataset_name = f"mnist_{str(size)}_{str(test_size)}_{str(nb_labels)}.csv"
-        dataset_path = os.path.join(OUTPUT_PATH, dataset_name)
+        dataset_path = os.path.join(CLEAN_PATH, dataset_name)
     else:
-        dataset_path = os.path.join(OUTPUT_PATH, name)
+        dataset_path = os.path.join(CLEAN_PATH, name + '.csv')
+
+    print('Creating dataset...')
 
     if os.path.exists(dataset_path):
         raise NameError('Dataset already exists')
@@ -77,7 +90,7 @@ def make_dataset(name=None, size=30000, test_size=0.2, nb_labels=0.1, nb_class=1
         with open(dataset_path, 'w+') as f:
             f.write('Name,Label,Test\n')
 
-    df_imgs = pd.read_csv(os.path.join(DATA_PATH, 'name_labels.csv')).iloc[:size]
+    df_imgs = pd.read_csv(os.path.join(RAW_PATH, 'name_labels.csv')).iloc[:size]
 
     train_imgs, test_imgs = train_test_split(df_imgs, test_size=test_size, shuffle=True)
 
@@ -91,6 +104,8 @@ def make_dataset(name=None, size=30000, test_size=0.2, nb_labels=0.1, nb_class=1
 
     with open(dataset_path, 'a') as f:
         f.write(df_data.to_csv(header=False))
+
+    print('Done!')
 
 
 if __name__ == '__main__':
