@@ -99,18 +99,20 @@ def temporal_ensembling_training(train_dataloader, model, optimizer, args):
             unsup_loss_epoch += unsup_loss
 
             if batch_idx % args.log_interval == 0:
-                pbar.set_description('Train Epoch: {} [{}/{} ({:.0f}%)]. Loss: {:.8f}'.format(epoch,
-                                                                                              batch_idx * len(data),
-                                                                                              args.nb_img_train,
-                                                                                              100. * batch_idx / args.nb_batches,
-                                                                                              (loss_epoch / (batch_idx + 1)).item()))
+                pbar.set_description('Train Epoch: {}/{} [{}/{} ({:.0f}%)]. Loss: {:.8f}'.format(epoch,
+                                                                                                args.epochs,
+                                                                                                batch_idx * len(data),
+                                                                                                args.nb_img_train,
+                                                                                                100. * batch_idx / args.nb_batches,
+                                                                                                (loss_epoch / (batch_idx + 1)).item()))
 
             if batch_idx + 1 >= args.nb_batches:
-                pbar.set_description('Train Epoch: {} [{}/{} ({:.0f}%)]. Loss: {:.8f}'.format(epoch,
-                                                                                              args.nb_img_train,
-                                                                                              args.nb_img_train,
-                                                                                              100.,
-                                                                                              (loss_epoch / args.nb_batches).item()))
+                pbar.set_description('Train Epoch: {}/{} [{}/{} ({:.0f}%)]. Loss: {:.8f}'.format(epoch,
+                                                                                                 args.epochs,
+                                                                                                 args.nb_img_train,
+                                                                                                 args.nb_img_train,
+                                                                                                 100.,
+                                                                                                 (loss_epoch / args.nb_batches).item()))
 
         if epoch % args.TRAIN_STEP == 0:
             torch.save({'epoch': epoch,
