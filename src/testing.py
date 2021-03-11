@@ -10,6 +10,7 @@ import torch.backends.cudnn as cudnn
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -49,12 +50,12 @@ def testing_metrics(test_dataloader, model, args):
                                                                                   args.nb_batches_test,
                                                                                   batch_idx * len(data),
                                                                                   args.nb_img_test,
-                                                                                  100. * batch_idx / args.nb_batches_test)
+                                                                                  100. * batch_idx / args.nb_batches_test))
         pbar.set_description('Test Batch: {}/{} [{}/{} ({:.0f}%)]'.format(args.nb_batches_test,
                                                                           args.nb_batches_test,
                                                                           args.nb_img_test,
                                                                           args.nb_img_test,
-                                                                          100.)
+                                                                          100.))
 
 
     print(metrics.classification_report(oriImageLabel, oriTestLabel, digits=3))
@@ -79,7 +80,14 @@ def testing_display(test_dataloader, model, args):
 
         img = img.squeeze().cpu().numpy()
         ax = fig.add_subplot(3, 3, subplot_id)
-        ax.imshow(img, cmap='gray_r')
+
+        if img.shape[1] == img.shape[2]:
+            img = np.transpose(img, (1, 2, 0))  # Edge case can be annoying
+
+        if args.img_mode == 'L':
+            ax.imshow(img, cmap='gray_r')
+        elif args.img_mode == 'RGB':
+            ax.imshow(((img / 2 + 0.5) * 255).astype(np.uint8))
         ax.set_title(f'Prediction/True label: {pred_label.squeeze().cpu().numpy()}/{target}')
         ax.axis('off')
 

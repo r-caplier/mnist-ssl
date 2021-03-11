@@ -28,7 +28,7 @@ from torch.utils.data import DataLoader
 ################################################################################
 
 TRAIN_STEP = 10
-RAMP_MULT = 2
+RAMP_MULT = 4
 
 ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
 
@@ -52,7 +52,7 @@ parser = argparse.ArgumentParser(description='Semi-supervised MNIST training')
 
 parser.add_argument('--data', type=str, help='data to use')
 parser.add_argument('--dataset_name', type=str, help='name of the saved dataset to use')
-parser.add_argument('--img_mode', type=str, default='L', help='loading method (RGB or L)')
+parser.add_argument('--img_mode', type=str, default='RGB', help='loading method (RGB or L)')
 
 parser.add_argument('--method', type=str, default='TemporalEnsembling', help='training method')
 parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer to use')
@@ -108,7 +108,8 @@ else:
 def main():
 
     if args.train:
-        print('Starting training...')
+
+        print('\n\nStarting training...\n')
 
         # Dataset object based on which data is used
         if args.data == 'MNIST':
@@ -119,10 +120,19 @@ def main():
                                                   transform=train_dataset_transforms)
             model = models.MNISTModel()
 
+        if args.data == 'CIFAR10':
+            train_dataset_transforms = transforms.Compose([transforms.ToTensor(),
+                                                           transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+            train_dataset = datasets.DatasetCIFAR10(args,
+                                                    False,
+                                                    transform=train_dataset_transforms)
+            model = models.CIFAR10Model()
+
         if args.data == 'CGvsNI':  # TODO!
             train_dataset_transforms = None
 
         # DataLoader object
+        print('Image mode: ', args.img_mode)
         train_dataloader = DataLoader(train_dataset, **kwargs)
 
         # Useful variables
@@ -131,7 +141,8 @@ def main():
         args.nb_classes = train_dataset.nb_classes
         args.percent_labeled = train_dataset.percent_labeled
 
-        print('The number of train data: {}'.format(len(train_dataloader.dataset)))
+        print('Number of train data: {}'.format(len(train_dataloader.dataset)))
+        print('\n')
 
         # Optimizer
         if args.optimizer == 'Adam':
@@ -162,6 +173,19 @@ def main():
                                                  True,
                                                  transform=test_dataset_transforms)
             model = models.MNISTModel()
+
+            latest_log = get_latest_log(args.logs_path)
+
+            checkpoint = torch.load(os.path.join(args.logs_path, latest_log))
+            model.load_state_dict(checkpoint['state_dict'])
+
+        if args.data == 'CIFAR10':
+            test_dataset_transforms = transforms.Compose([transforms.ToTensor(),
+                                                           transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+            test_dataset = datasets.DatasetCIFAR10(args,
+                                                   True,
+                                                   transform=test_dataset_transforms)
+            model = models.CIFAR10Model()
 
             latest_log = get_latest_log(args.logs_path)
 

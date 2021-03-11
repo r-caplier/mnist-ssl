@@ -47,7 +47,7 @@ def mask_labels(list_labels, nb_labels):
             list_labels[i] = -1
             cnt += 1
         else:
-            list_labels[i] = list_labels[i][1]
+            list_labels[i] = list_labels[i]
 
     return list_labels
 
@@ -74,6 +74,7 @@ def make_dataset(nb_labels, name=None):
     print('Creating dataset...')
 
     df_imgs = pd.read_csv(os.path.join(RAW_PATH, 'name_labels.csv'))
+    df_imgs['Label'] = df_imgs['Label'].apply(lambda x: int(x[1]))
 
     dataset_size = len(df_imgs)
     good_parameters(dataset_size, nb_labels)
@@ -90,9 +91,11 @@ def make_dataset(nb_labels, name=None):
     train_imgs.reset_index(drop=True, inplace=True)
     test_imgs.reset_index(drop=True, inplace=True)
 
+
     train_imgs.loc[:, 'Label'] = mask_labels(train_imgs.loc[:, 'Label'], nb_labels)
 
     df_data = pd.concat([train_imgs, test_imgs]).reset_index(drop=True)
+    df_data['Label'] = df_data['Label'].astype(int)
 
     with open(dataset_path, 'a') as f:
         f.write(df_data.to_csv(header=False))
