@@ -6,7 +6,7 @@ from PIL import Image
 from sklearn.datasets import fetch_openml
 from tqdm import tqdm
 
-ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
+ROOT_PATH = pathlib.Path(__file__).resolve().parents[2].absolute()
 
 SAVE_PATH = os.path.join(ROOT_PATH, 'datasets', 'MNIST', 'raw')
 if not os.path.exists(SAVE_PATH):

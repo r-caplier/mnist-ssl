@@ -10,9 +10,7 @@ from sklearn.model_selection import train_test_split
 import warnings
 warnings.filterwarnings('ignore')
 
-ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
-
-NB_CLASSES = 10
+ROOT_PATH = pathlib.Path(__file__).resolve().parents[2].absolute()
 
 parser = argparse.ArgumentParser(description='Dataset maker')
 
@@ -44,7 +42,7 @@ def good_parameters(nb_imgs, test_size, nb_labels):
     assert (nb_imgs * (1 - test_size) * nb_labels).is_integer()
 
 
-def mask_labels(list_labels, nb_labels, nb_class):
+def mask_labels(list_labels, nb_labels):
 
     id_kept = list(range(len(list_labels)))
     labels_kept = random.sample(id_kept, int(nb_labels * len(list_labels)))
@@ -58,13 +56,13 @@ def mask_labels(list_labels, nb_labels, nb_class):
     return list_labels
 
 
-def make_dataset(name=None, size=30000, test_size=0.2, nb_labels=0.1, nb_class=10):
+def make_dataset(dataset_size, test_size, nb_labels, name=None):
     """
     Grabs images names and creates a list of training samples and testing
     samples, and saves it in a .csv file
 
     Args:
-        - size (int, default 30000): number of images for the dataset
+        - size (int, default 30000): number of images for the dataset, use 61 to use all avaliable images
         - test_size (float, default 0.1): percent of the train size to be used
         as test size
         - nb_labels (float, default 0.1): share of the training samples to save
@@ -73,16 +71,22 @@ def make_dataset(name=None, size=30000, test_size=0.2, nb_labels=0.1, nb_class=1
         - name (str, default None): name override for the final file
     """
 
-    good_parameters(size, test_size, nb_labels)
-
     if name == None:
         # default naming convention
-        dataset_name = f"mnist_{str(size)}_{str(test_size)}_{str(nb_labels)}.csv"
+        dataset_name = f"mnist_{str(dataset_size)}_{str(test_size)}_{str(nb_labels)}.csv"
         dataset_path = os.path.join(CLEAN_PATH, dataset_name)
     else:
         dataset_path = os.path.join(CLEAN_PATH, name + '.csv')
 
     print('Creating dataset...')
+
+    if dataset_size == -1:
+        df_imgs = pd.read_csv(os.path.join(RAW_PATH, 'name_labels.csv'))
+        dataset_size = len(df_imgs)
+    else:
+        df_imgs = pd.read_csv(os.path.join(RAW_PATH, 'name_labels.csv')).iloc[:dataset_size]
+
+    good_parameters(dataset_size, test_size, nb_labels)
 
     if os.path.exists(dataset_path):
         raise NameError('Dataset already exists')
@@ -90,14 +94,12 @@ def make_dataset(name=None, size=30000, test_size=0.2, nb_labels=0.1, nb_class=1
         with open(dataset_path, 'w+') as f:
             f.write('Name,Label,Test\n')
 
-    df_imgs = pd.read_csv(os.path.join(RAW_PATH, 'name_labels.csv')).iloc[:size]
-
     train_imgs, test_imgs = train_test_split(df_imgs, test_size=test_size, shuffle=True)
 
     train_imgs.reset_index(drop=True, inplace=True)
     test_imgs.reset_index(drop=True, inplace=True)
 
-    train_imgs.loc[:, 'class'] = mask_labels(train_imgs.loc[:, 'class'], nb_labels, nb_class)
+    train_imgs.loc[:, 'class'] = mask_labels(train_imgs.loc[:, 'class'], nb_labels)
 
     df_data = pd.concat([train_imgs, test_imgs]).reset_index(drop=True)
     df_data.insert(2, "Test", [False for x in range(len(train_imgs))] + [True for x in range(len(test_imgs))])
@@ -109,4 +111,4 @@ def make_dataset(name=None, size=30000, test_size=0.2, nb_labels=0.1, nb_class=1
 
 
 if __name__ == '__main__':
-    make_dataset(args.dataset_name, args.dataset_size, args.test_size, args.nb_labels, NB_CLASSES)
+    make_dataset(args.dataset_size, args.test_size, args.nb_labels, args.dataset_name)
