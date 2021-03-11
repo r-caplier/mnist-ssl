@@ -28,7 +28,7 @@ if not os.path.exists(DATA_PATH):
 
 CLEAN_PATH = os.path.join(DATA_PATH, 'clean')
 if not os.path.exists(CLEAN_PATH):
-    os.mkdir(CLEAN_PATH)
+    os.makedirs(CLEAN_PATH)
 
 RAW_PATH = os.path.join(DATA_PATH, 'raw')
 if not os.path.exists(RAW_PATH):
