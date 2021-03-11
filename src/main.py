@@ -57,8 +57,12 @@ parser.add_argument('--ramp_epochs', type=int, default=10, help='number of epoch
 parser.add_argument('--max_weight', type=float, default=20., help='maximum weight for the unsupervised loss (default: 30.)')
 parser.add_argument('--alpha', type=float, default=0.6, help='variable for the moving average part (default: 0.7)')
 
-parser.add_argument('--train', type=bool, default=True, help='Whether or not to train the model')
-parser.add_argument('--test', type=bool, default=True, help='Whether or not to test the model. If no trained model is found, returns an error')
+parser.add_argument('--train', dest='train', action='store_true')
+parser.add_argument('--no-train', dest='train', action='store_false')
+parser.set_defaults(train=True)
+parser.add_argument('--test', dest='test', action='store_true')
+parser.add_argument('--no-test', dest='test', action='store_false')
+parser.set_defaults(test=True)
 parser.add_argument('--log_interval', type=int, default=10, help='how many batches to wait before logging training status')
 parser.add_argument('--no_cuda', default=False, help='disables CUDA training')
 
@@ -145,7 +149,7 @@ def main():
                                                           transforms.Normalize((0.5), (0.5))])
             test_dataset = datasets.DatasetMNIST(args,
                                                  True,
-                                                 transform=train_dataset_transforms)
+                                                 transform=test_dataset_transforms)
             model = models.MNISTModel()
 
             latest_log = get_latest_log(args.logs_path)
@@ -156,9 +160,33 @@ def main():
         if args.data == 'CGvsNI':  # TODO!
             test_dataset_transforms = None
 
-        testing.testing(test_dataloader, model, args)
+        # DataLoader object
+        test_dataloader = DataLoader(test_dataset, **kwargs)
+
+        args.nb_img_test = len(test_dataset)
+        args.nb_batches_test = len(test_dataloader)
+
+        testing.testing_metrics(test_dataloader, model, args)
 
         print('Tests done!')
+
+
+def get_latest_log(logs_path):
+
+    list_logs = os.listdir(logs_path)
+
+    latest_log_id = 0
+    latest_log_epoch = 0
+    latest_log = list_logs[0]
+
+    for i in range(len(list_logs)):
+        log_epoch = list_logs[i].split('_')[-1].split('.')[0]
+        if int(log_epoch) > latest_log_epoch:
+            latest_log = list_logs[i]
+            latest_log_epoch = int(log_epoch)
+            latest_log_id = i
+
+    return latest_log
 
 
 if __name__ == '__main__':

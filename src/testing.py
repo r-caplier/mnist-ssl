@@ -17,7 +17,8 @@ from tqdm import tqdm
 
 ROOT_PATH = pathlib.Path(__file__).resolve().parents[1].absolute()
 
-def testing(test_dataloader, model, args):
+
+def testing_metrics(test_dataloader, model, args):
 
     if args.cuda:
         model.cuda()
@@ -27,7 +28,7 @@ def testing(test_dataloader, model, args):
     oriImageLabel = []
     oriTestLabel = []
 
-    pbar = tqdm(enumerate(test_loader))
+    pbar = tqdm(enumerate(test_dataloader))
 
     with torch.no_grad():
         for batch_idx, (data, target) in pbar:
@@ -43,17 +44,19 @@ def testing(test_dataloader, model, args):
             oriImageLabel.extend(target.data.cpu().numpy())
 
     result = np.array(oriImageLabel) == np.array(oriTestLabel)
-    print('Accuracy: ', sum(result) / len(test_loader.dataset))
+    print('Accuracy: ', sum(result) / args.nb_img_test)
+
+def testing_diplay():
 
     nb_imgs_to_check = 9
     fig = plt.figure(figsize=(12, 12))
 
-    id_to_check = random.sample(range(len(test_dataset)), nb_imgs_to_check)
+    id_to_check = random.sample(range(args.nb_img_test), nb_imgs_to_check)
     subplot_id = 1
 
     for i in id_to_check:
 
-        img, target = test_dataset[i]
+        img, target = test_dataloader.dataset[i]
         if args.cuda:
             img = img.cuda()
 
@@ -70,25 +73,3 @@ def testing(test_dataloader, model, args):
         subplot_id += 1
 
     plt.show()
-
-
-def get_latest_log(logs_path):
-
-    list_logs = os.listdir(logs_path)
-
-    latest_log_id = 0
-    latest_log_epoch = 0
-    latest_log = list_logs[0]
-
-    for i in range(len(list_logs)):
-        log_epoch = list_logs[i].split('_')[-1].split('.')[0]
-        if int(log_epoch) > latest_log_epoch:
-            latest_log = list_logs[i]
-            latest_log_epoch = int(log_epoch)
-            latest_log_id = i
-
-    return latest_log
-
-
-if __name__ == '__main__':
-    main()
