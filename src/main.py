@@ -52,7 +52,7 @@ parser = argparse.ArgumentParser(description='Semi-supervised MNIST training')
 
 parser.add_argument('--data', type=str, help='data to use')
 parser.add_argument('--dataset_name', type=str, help='name of the saved dataset to use')
-parser.add_argument('--img_mode', type=str, default='RGB', help='loading method (RGB or L)')
+parser.add_argument('--img_mode', type=str, help='loading method (RGB or L)')
 
 parser.add_argument('--method', type=str, default='TemporalEnsembling', help='training method')
 parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer to use')

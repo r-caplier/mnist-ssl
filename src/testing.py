@@ -51,7 +51,8 @@ def testing_metrics(test_dataloader, model, args):
                                                                                   batch_idx * len(data),
                                                                                   args.nb_img_test,
                                                                                   100. * batch_idx / args.nb_batches_test))
-        pbar.set_description('Test Batch: {}/{} [{}/{} ({:.0f}%)]'.format(args.nb_batches_test,
+            if batch_idx + 1 >= args.nb_batches_test:
+                pbar.set_description('Test Batch: {}/{} [{}/{} ({:.0f}%)]'.format(args.nb_batches_test,
                                                                           args.nb_batches_test,
                                                                           args.nb_img_test,
                                                                           args.nb_img_test,
@@ -78,16 +79,17 @@ def testing_display(test_dataloader, model, args):
         result = F.softmax(result, dim=1)
         pred_label = result.data.max(1, keepdim=True)[1]
 
-        img = img.squeeze().cpu().numpy()
-        ax = fig.add_subplot(3, 3, subplot_id)
-
+        img = img.cpu().numpy()
         if img.shape[1] == img.shape[2]:
             img = np.transpose(img, (1, 2, 0))  # Edge case can be annoying
+        if np.amin(img) < 0:
+            img = ((img / 2 + 0.5) * 255).astype(np.uint8)
 
+        ax = fig.add_subplot(3, 3, subplot_id)
         if args.img_mode == 'L':
             ax.imshow(img, cmap='gray_r')
         elif args.img_mode == 'RGB':
-            ax.imshow(((img / 2 + 0.5) * 255).astype(np.uint8))
+            ax.imshow(img)
         ax.set_title(f'Prediction/True label: {pred_label.squeeze().cpu().numpy()}/{target}')
         ax.axis('off')
 
